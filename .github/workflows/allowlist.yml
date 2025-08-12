@@ -1,0 +1,50 @@
+---
+
+name: IP Allowlist 
+
+on: 
+    #push:
+    #   branches: [ main ]
+
+    workflow_dispatch:
+
+env:
+  STACK_NAME: ${{ secrets.STACK_NAME }}
+
+jobs:
+  add-to-ip-allowlist:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v2
+
+    - name: Install Homebrew
+      run: |
+        echo "Installing homebrew"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+        test -d ~/.linuxbrew && eval $(~/.linuxbrew/bin/brew shellenv)
+        test -d /home/linuxbrew/.linuxbrew && eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
+        echo "eval \$($(brew --prefix)/bin/brew shellenv)" >>~/.profile
+        echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+        brew --version
+
+    - name: Install ACS CLI
+      run: |
+        echo "Installing ACS CLI from Homebrew"
+        brew tap splunk/tap
+        brew install acs
+
+    - name: Configure stack in ACS CLI
+      run: |
+        acs config add-stack $STACK_NAME --use add  --stack-type classic  if using classic stack
+
+    - name: Authenticate ACS CLI with ACS
+      env:
+        STACK_TOKEN: ${{ secrets.STACK_TOKEN }}
+      run: acs login
+
+    - name: Add subnet
+      run: acs ip-allowlist create s2s --subnets=47.16.104.185/32
+
+    - name: Verify subnets
+      run:  acs ip-allowlist describe s2s
